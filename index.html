@@ -123,6 +123,7 @@
   .form-input:focus { border-color:var(--accent); background:#fff; }
   textarea.form-input { resize:none; line-height:1.6; min-height:90px; }
   select.form-input { appearance:none; cursor:pointer; }
+  input[type="date"].form-input { -webkit-appearance:none; appearance:none; width:100%; box-sizing:border-box; min-height:44px; }
   .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .star-picker { display:flex; gap:6px; margin-top:4px; }
   .star-btn { font-size:26px; cursor:pointer; transition:transform 0.1s; color:#DDDDDD; }
@@ -362,7 +363,7 @@
       <input type="hidden" id="f-thumbnail">
       <div class="form-group">
         <label class="form-label">구매일</label>
-        <input type="date" class="form-input" id="f-date">
+        <input type="date" class="form-input" id="f-date" style="width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none;">
       </div>
       <div class="btn-row">
         <button class="btn-ghost" id="deleteBtn" onclick="deleteCurrentBook()" style="display:none;">삭제</button>
@@ -390,8 +391,23 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
+        <label class="form-label">책 검색</label>
+        <div style="position:relative">
+          <input type="text" class="form-input" id="w-search" placeholder="제목으로 검색..." oninput="searchBooksWish(this.value)" autocomplete="off">
+          <div id="wishSearchResults" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1.5px solid rgba(124,58,237,0.3); border-radius:12px; max-height:220px; overflow-y:auto; z-index:999; box-shadow:0 4px 20px rgba(0,0,0,0.1);"></div>
+        </div>
+        <div id="wishSelectedBook" style="display:none; margin-top:10px; padding:10px 12px; background:rgba(124,58,237,0.06); border-radius:10px; align-items:center; gap:10px;">
+          <img id="wishSelectedCover" src="" style="width:36px;height:50px;border-radius:4px;object-fit:cover;flex-shrink:0;">
+          <div style="flex:1;min-width:0">
+            <div id="wishSelectedTitle" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+            <div id="wishSelectedMeta" style="font-size:11px;color:#888;margin-top:2px;"></div>
+          </div>
+          <button onclick="clearWishSelectedBook()" style="background:none;border:none;cursor:pointer;color:#aaa;font-size:16px;padding:4px;">✕</button>
+        </div>
+      </div>
+      <div class="form-group">
         <label class="form-label">제목 *</label>
-        <input type="text" class="form-input" id="w-title" placeholder="책 제목">
+        <input type="text" class="form-input" id="w-title" placeholder="책 제목 (검색 후 자동입력)">
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -403,6 +419,7 @@
           <input type="text" class="form-input" id="w-publisher" placeholder="출판사">
         </div>
       </div>
+      <input type="hidden" id="w-thumbnail">
       <div class="form-group">
         <label class="form-label">메모</label>
         <input type="text" class="form-input" id="w-memo" placeholder="추천받은 이유 등...">
@@ -815,7 +832,7 @@ function renderWish() {
   }
   container.innerHTML = wishlist.map(w => `
     <div class="wish-card">
-      <div class="cover-placeholder ${coverClass(w.id)}" style="width:44px;height:60px;border-radius:6px;font-size:9px;flex-shrink:0">${w.title.slice(0,4)}</div>
+      ${w.thumbnail ? `<img src="${w.thumbnail}" style="width:44px;height:60px;border-radius:6px;object-fit:cover;flex-shrink:0;">` : `<div class="cover-placeholder ${coverClass(w.id)}" style="width:44px;height:60px;border-radius:6px;font-size:9px;flex-shrink:0">${w.title.slice(0,4)}</div>`}
       <div class="wish-info">
         <div class="wish-title">${w.title}</div>
         <div class="wish-author">${w.author||'저자 미상'}${w.publisher?` · ${w.publisher}`:''}</div>
@@ -829,6 +846,66 @@ function renderWish() {
   `).join('');
 }
 
+let wishSearchTimer = null;
+
+async function searchBooksWish(query) {
+  const results = document.getElementById('wishSearchResults');
+  if(!query || query.length < 2) { results.style.display='none'; return; }
+  clearTimeout(wishSearchTimer);
+  wishSearchTimer = setTimeout(async () => {
+    results.style.display='block';
+    results.innerHTML = '<div style="padding:12px 16px;font-size:13px;color:#aaa">검색 중...</div>';
+    try {
+      const res = await fetch(`https://dapi.kakao.com/v3/search/book?query=${encodeURIComponent(query)}&size=8`, {
+        headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
+      });
+      const data = await res.json();
+      if(!data.documents || !data.documents.length) {
+        results.innerHTML = '<div style="padding:12px 16px;font-size:13px;color:#aaa">검색 결과가 없어요</div>';
+        return;
+      }
+      results.innerHTML = data.documents.map((book, i) => `
+        <div onclick="selectWishBook(${i})" style="display:flex;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:0.5px solid rgba(0,0,0,0.06);transition:background 0.15s" onmouseover="this.style.background='rgba(124,58,237,0.05)'" onmouseout="this.style.background=''">
+          ${book.thumbnail ? `<img src="${book.thumbnail}" style="width:32px;height:44px;border-radius:3px;object-fit:cover;flex-shrink:0;">` : '<div style="width:32px;height:44px;background:#eee;border-radius:3px;flex-shrink:0;"></div>'}
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
+            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${book.title}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px;">${(book.authors||[]).join(', ')} · ${book.publisher||''}</div>
+          </div>
+        </div>
+      `).join('');
+      results._data = data.documents;
+    } catch(e) {
+      results.innerHTML = '<div style="padding:12px 16px;font-size:13px;color:#e55">검색 오류. API 키를 확인해주세요</div>';
+    }
+  }, 400);
+}
+
+function selectWishBook(idx) {
+  const results = document.getElementById('wishSearchResults');
+  const book = results._data[idx];
+  if(!book) return;
+  document.getElementById('w-title').value = book.title || '';
+  document.getElementById('w-author').value = (book.authors||[]).join(', ');
+  document.getElementById('w-publisher').value = book.publisher || '';
+  document.getElementById('w-thumbnail').value = book.thumbnail || '';
+  document.getElementById('w-search').value = '';
+  results.style.display = 'none';
+  const sel = document.getElementById('wishSelectedBook');
+  document.getElementById('wishSelectedCover').src = book.thumbnail || '';
+  document.getElementById('wishSelectedCover').style.display = book.thumbnail ? 'block' : 'none';
+  document.getElementById('wishSelectedTitle').textContent = book.title;
+  document.getElementById('wishSelectedMeta').textContent = `${(book.authors||[]).join(', ')} · ${book.publisher||''}`;
+  sel.style.display = 'flex';
+}
+
+function clearWishSelectedBook() {
+  document.getElementById('wishSelectedBook').style.display = 'none';
+  document.getElementById('w-title').value = '';
+  document.getElementById('w-author').value = '';
+  document.getElementById('w-publisher').value = '';
+  document.getElementById('w-thumbnail').value = '';
+}
+
 function saveWish() {
   const title = document.getElementById('w-title').value.trim();
   if(!title) { alert('제목을 입력해주세요'); return; }
@@ -837,11 +914,14 @@ function saveWish() {
     title,
     author: document.getElementById('w-author').value.trim(),
     publisher: document.getElementById('w-publisher').value.trim(),
+    thumbnail: document.getElementById('w-thumbnail').value.trim(),
     memo: document.getElementById('w-memo').value.trim()
   });
   save();
   closeModal('wishModal');
-  ['w-title','w-author','w-publisher','w-memo'].forEach(id=>document.getElementById(id).value='');
+  ['w-title','w-author','w-publisher','w-memo','w-search','w-thumbnail'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('wishSelectedBook').style.display='none';
+  document.getElementById('wishSearchResults').style.display='none';
   renderWish();
 }
 
