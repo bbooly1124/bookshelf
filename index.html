@@ -270,9 +270,24 @@
       <button class="modal-close" onclick="closeModal('addModal')">✕</button>
     </div>
     <div class="modal-body">
+      <div class="form-group" id="searchGroup">
+        <label class="form-label">책 검색</label>
+        <div style="position:relative">
+          <input type="text" class="form-input" id="f-search" placeholder="제목으로 검색..." oninput="searchBooks(this.value)" autocomplete="off">
+          <div id="searchResults" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1.5px solid rgba(124,58,237,0.3); border-radius:12px; max-height:220px; overflow-y:auto; z-index:999; box-shadow:0 4px 20px rgba(0,0,0,0.1);"></div>
+        </div>
+        <div id="selectedBook" style="display:none; margin-top:10px; padding:10px 12px; background:rgba(124,58,237,0.06); border-radius:10px; align-items:center; gap:10px;">
+          <img id="selectedCover" src="" style="width:36px;height:50px;border-radius:4px;object-fit:cover;flex-shrink:0;">
+          <div style="flex:1;min-width:0">
+            <div id="selectedTitle" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+            <div id="selectedMeta" style="font-size:11px;color:#888;margin-top:2px;"></div>
+          </div>
+          <button onclick="clearSelectedBook()" style="background:none;border:none;cursor:pointer;color:#aaa;font-size:16px;padding:4px;">✕</button>
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">제목 *</label>
-        <input type="text" class="form-input" id="f-title" placeholder="책 제목">
+        <input type="text" class="form-input" id="f-title" placeholder="책 제목 (검색 후 자동입력)">
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -397,6 +412,7 @@
 </div>
 
 <script>
+const KAKAO_API_KEY = '390aa3703de80a232b66624984a9ab0d'
 let books = JSON.parse(localStorage.getItem('bookshelf_books') || '[]');
 let wishlist = JSON.parse(localStorage.getItem('bookshelf_wish') || '[]');
 let currentFilter = 'all';
@@ -406,6 +422,79 @@ let currentStar = 0;
 
 const statusMap = { read:'완독', reading:'읽는중', unread:'미독' };
 const statusBadge = { read:'badge-read', reading:'badge-reading', unread:'badge-unread' };
+
+let searchTimer = null;
+
+async function searchBooks(query) {
+  const results = document.getElementById('searchResults');
+  if(!query || query.length < 2) { results.style.display='none'; return; }
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    results.style.display='block';
+    results.innerHTML = '<div style="padding:12px 16px;font-size:13px;color:#aaa">검색 중...</div>';
+    try {
+      const res = await fetch(`https://dapi.kakao.com/v3/search/book?query=${encodeURIComponent(query)}&size=8`, {
+        headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
+      });
+      const data = await res.json();
+      if(!data.documents || !data.documents.length) {
+        results.innerHTML = '<div style="padding:12px 16px;font-size:13px;color:#aaa">검색 결과가 없어요</div>';
+        return;
+      }
+      results.innerHTML = data.documents.map((book, i) => `
+        <div onclick="selectBook(${i})" data-idx="${i}" style="display:flex;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:0.5px solid rgba(0,0,0,0.06);transition:background 0.15s" onmouseover="this.style.background='rgba(124,58,237,0.05)'" onmouseout="this.style.background=''"
+          data-title="${(book.title||'').replace(/"/g,'&quot;')}"
+          data-author="${(book.authors||[]).join(', ').replace(/"/g,'&quot;')}"
+          data-publisher="${(book.publisher||'').replace(/"/g,'&quot;')}"
+          data-thumbnail="${book.thumbnail||''}"
+          data-price="${book.sale_price > 0 ? book.sale_price : (book.price||'')}">
+          ${book.thumbnail ? `<img src="${book.thumbnail}" style="width:32px;height:44px;border-radius:3px;object-fit:cover;flex-shrink:0;">` : '<div style="width:32px;height:44px;background:#eee;border-radius:3px;flex-shrink:0;"></div>'}
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;">
+            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${book.title}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px;">${(book.authors||[]).join(', ')} · ${book.publisher||''}</div>
+          </div>
+        </div>
+      `).join('');
+      results._data = data.documents;
+    } catch(e) {
+      results.innerHTML = '<div style="padding:12px 16px;font-size:13px;color:#e55">검색 오류. API 키를 확인해주세요</div>';
+    }
+  }, 400);
+}
+
+function selectBook(idx) {
+  const results = document.getElementById('searchResults');
+  const book = results._data[idx];
+  if(!book) return;
+  document.getElementById('f-title').value = book.title || '';
+  document.getElementById('f-author').value = (book.authors||[]).join(', ');
+  document.getElementById('f-publisher').value = book.publisher || '';
+  if(book.sale_price > 0) document.getElementById('f-price').value = book.sale_price;
+  else if(book.price > 0) document.getElementById('f-price').value = book.price;
+  document.getElementById('f-search').value = '';
+  results.style.display = 'none';
+  const sel = document.getElementById('selectedBook');
+  document.getElementById('selectedCover').src = book.thumbnail || '';
+  document.getElementById('selectedCover').style.display = book.thumbnail ? 'block' : 'none';
+  document.getElementById('selectedTitle').textContent = book.title;
+  document.getElementById('selectedMeta').textContent = `${(book.authors||[]).join(', ')} · ${book.publisher||''}`;
+  sel.style.display = 'flex';
+}
+
+function clearSelectedBook() {
+  document.getElementById('selectedBook').style.display = 'none';
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-author').value = '';
+  document.getElementById('f-publisher').value = '';
+  document.getElementById('f-price').value = '';
+}
+
+document.addEventListener('click', (e) => {
+  const results = document.getElementById('searchResults');
+  if(results && !results.contains(e.target) && e.target.id !== 'f-search') {
+    results.style.display = 'none';
+  }
+});
 
 function save() {
   localStorage.setItem('bookshelf_books', JSON.stringify(books));
@@ -560,7 +649,9 @@ function openEditModal(id) {
 }
 
 function clearForm() {
-  ['f-title','f-author','f-publisher','f-memo','f-highlight','f-price','f-date','f-current','f-total'].forEach(id=>{ document.getElementById(id).value=''; });
+  ['f-title','f-author','f-publisher','f-memo','f-highlight','f-price','f-date','f-current','f-total','f-search'].forEach(id=>{ document.getElementById(id).value=''; });
+  document.getElementById('selectedBook').style.display='none';
+  document.getElementById('searchResults').style.display='none';
   document.getElementById('f-genre').value='';
   document.getElementById('f-status').value='unread';
   document.getElementById('f-store').value='';
