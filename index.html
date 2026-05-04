@@ -205,24 +205,34 @@
     </div>
   </div>
 
-  <!-- Stats filter bar -->
-  <div class="stats-bar" id="filterBar">
-    <div class="stat-chip all active" onclick="setFilter('all',this)">
-      <div class="stat-dot"></div>
-      <span>전체 <span id="cnt-all">0</span></span>
+  <!-- Stats filter bar + sort in one row -->
+  <div class="stats-bar" id="filterBar" style="justify-content:space-between;">
+    <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;flex:1;">
+      <div class="stat-chip all active" onclick="setFilter('all',this)">
+        <div class="stat-dot"></div>
+        <span>전체 <span id="cnt-all">0</span></span>
+      </div>
+      <div class="stat-chip read" onclick="setFilter('read',this)">
+        <div class="stat-dot"></div>
+        <span>읽은책 <span id="cnt-read">0</span></span>
+      </div>
+      <div class="stat-chip reading" onclick="setFilter('reading',this)">
+        <div class="stat-dot"></div>
+        <span>읽는중 <span id="cnt-reading">0</span></span>
+      </div>
+      <div class="stat-chip unread" onclick="setFilter('unread',this)">
+        <div class="stat-dot"></div>
+        <span>미독 <span id="cnt-unread">0</span></span>
+      </div>
     </div>
-    <div class="stat-chip read" onclick="setFilter('read',this)">
-      <div class="stat-dot"></div>
-      <span>읽은책 <span id="cnt-read">0</span></span>
-    </div>
-    <div class="stat-chip reading" onclick="setFilter('reading',this)">
-      <div class="stat-dot"></div>
-      <span>읽는중 <span id="cnt-reading">0</span></span>
-    </div>
-    <div class="stat-chip unread" onclick="setFilter('unread',this)">
-      <div class="stat-dot"></div>
-      <span>미독 <span id="cnt-unread">0</span></span>
-    </div>
+    <select id="sortSelect" onchange="renderBooks()" style="flex-shrink:0;margin-left:8px;padding:5px 22px 5px 10px;border:1.5px solid var(--border);border-radius:20px;font-size:11px;font-weight:500;font-family:'Pretendard',sans-serif;background:var(--surface2);color:var(--text2);outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 7px center;">
+      <option value="default">추가순</option>
+      <option value="title">제목순</option>
+      <option value="author">저자순</option>
+      <option value="publisher">출판사순</option>
+      <option value="translator">번역자순</option>
+      <option value="rating">별점순</option>
+    </select>
   </div>
 </div>
 
@@ -230,7 +240,7 @@
 <div class="search-bar" id="searchBar" style="display:none">
   <div class="search-input-wrap">
     <span class="search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-    <input type="text" id="searchInput" placeholder="제목, 저자, 출판사 검색..." oninput="renderBooks()">
+    <input type="text" id="searchInput" placeholder="제목, 저자, 번역자, 출판사 검색..." oninput="renderBooks()">
   </div>
 </div>
 
@@ -586,19 +596,28 @@ function toggleSearch() {
 
 function renderBooks() {
   const q = (document.getElementById('searchInput').value||'').toLowerCase();
+  const sort = document.getElementById('sortSelect')?.value || 'default';
   let filtered = books.filter(b => {
     const match = currentFilter==='all' || b.status===currentFilter;
-    const search = !q || [b.title,b.author,b.publisher,b.genre].some(x=>(x||'').toLowerCase().includes(q));
+    const search = !q || [b.title,b.author,b.publisher,b.genre,b.translator].some(x=>(x||'').toLowerCase().includes(q));
     return match && search;
   });
+
+  // 정렬
+  if(sort === 'title') filtered.sort((a,b) => (a.title||'').localeCompare(b.title||'', 'ko'));
+  else if(sort === 'author') filtered.sort((a,b) => (a.author||'').localeCompare(b.author||'', 'ko'));
+  else if(sort === 'publisher') filtered.sort((a,b) => (a.publisher||'').localeCompare(b.publisher||'', 'ko'));
+  else if(sort === 'translator') filtered.sort((a,b) => (a.translator||'').localeCompare(b.translator||'', 'ko'));
+  else if(sort === 'rating') filtered.sort((a,b) => (b.rating||0) - (a.rating||0));
+
   const list = document.getElementById('bookList');
   if(!filtered.length) {
     list.innerHTML = `<div class="empty-state"><div class="empty-icon">📖</div><div class="empty-text">${q?'검색 결과가 없어요':'아직 책이 없어요<br>오른쪽 아래 + 버튼으로 추가해보세요'}</div></div>`;
     return;
   }
-  // group by status when filter is all
+  // 정렬이 기본이고 필터가 전체일 때만 상태별 그룹핑
   let html = '';
-  if(currentFilter==='all' && !q) {
+  if(currentFilter==='all' && !q && sort==='default') {
     const order = ['reading','unread','read'];
     const labels = { reading:'읽는중', unread:'미독', read:'완독' };
     order.forEach(s => {
