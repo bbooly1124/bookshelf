@@ -40,13 +40,12 @@
   /* Stats Bar */
   .stats-bar { display:flex; gap:8px; overflow-x:auto; padding:12px 20px; background:var(--surface); border-bottom:1px solid var(--border); scrollbar-width:none; }
   .stats-bar::-webkit-scrollbar { display:none; }
-  .stat-chip { flex-shrink:0; display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; border:1.5px solid transparent; transition:all 0.2s; }
-  .stat-chip.active { border-color: currentColor; }
-  .stat-chip.all { background:var(--surface2); color:var(--text2); }
-  .stat-chip.all.active { border-color:var(--text2); }
-  .stat-chip.read { background:var(--surface2); color:var(--text); }
-  .stat-chip.reading { background:var(--accent-soft); color:var(--accent); }
-  .stat-chip.unread { background:var(--surface2); color:var(--text2); }
+  .stat-chip { flex-shrink:0; display:flex; align-items:center; gap:5px; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; border:1.5px solid transparent; transition:all 0.2s; background:var(--surface2); color:var(--text3); }
+  .stat-chip.active { font-weight:700; color:#fff; border-color:transparent; }
+  .stat-chip.all.active { background:var(--text); }
+  .stat-chip.read.active { background:var(--text); }
+  .stat-chip.reading.active { background:var(--accent); }
+  .stat-chip.unread.active { background:var(--text2); }
   .stat-dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
 
   /* Search */
@@ -100,11 +99,10 @@
   /* Bottom Nav */
   .bottom-nav { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:430px; background:var(--surface); border-top:1px solid var(--border); display:flex; padding:8px 0 20px; z-index:100; }
   .nav-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; padding:6px 0; }
-  .nav-icon { width:20px; height:20px; display:flex; align-items:center; justify-content:center; color:var(--text3); }
-  .nav-item.active .nav-icon { color:var(--accent); }
+  .nav-icon { width:36px; height:32px; display:flex; align-items:center; justify-content:center; color:var(--text3); border-radius:20px; transition:all 0.2s; }
+  .nav-item.active .nav-icon { color:#fff; background:var(--accent); }
   .nav-label { font-size:10px; font-weight:500; color:var(--text3); }
   .nav-item.active .nav-label { color:var(--accent); font-weight:600; }
-  .nav-item.active .nav-icon { filter:none; }
 
   /* Modal */
   .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:300; display:flex; align-items:flex-end; opacity:0; pointer-events:none; transition:opacity 0.25s; }
@@ -193,13 +191,17 @@
 <!-- App Header -->
 <div class="app-header" id="mainHeader">
   <div class="header-top">
-    <span class="app-title">책장</span>
+    <span class="app-title">Bookshelf</span>
     <div class="header-actions">
       <button class="icon-btn" onclick="toggleSearch()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-      <button class="icon-btn" onclick="exportData()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
       <label class="icon-btn" style="cursor:pointer;position:relative;overflow:hidden;" title="엑셀 가져오기">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <input type="file" accept=".xlsx" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="importExcel(this)">
+      </label>
+      <button class="icon-btn" onclick="exportData()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+      <label class="icon-btn" style="cursor:pointer;position:relative;overflow:hidden;" title="백업 불러오기">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+        <input type="file" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;" onchange="importBackup(this)">
       </label>
 
     </div>
@@ -1097,6 +1099,44 @@ function importExcel(input) {
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+function importBackup(input) {
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if(!data.books || !Array.isArray(data.books)) {
+        alert('올바른 백업 파일이 아니에요.');
+        return;
+      }
+      if(!confirm(`백업 파일에 책 ${data.books.length}권이 있어요.\n현재 데이터에 합칠까요?\n(중복 제목은 자동으로 제외돼요)`)) {
+        input.value = '';
+        return;
+      }
+      let added = 0;
+      data.books.forEach(b => {
+        const dup = books.some(x => x.title === b.title && x.author === b.author);
+        if(!dup) { books.push(b); added++; }
+      });
+      if(data.wishlist && Array.isArray(data.wishlist)) {
+        data.wishlist.forEach(w => {
+          const dup = wishlist.some(x => x.title === w.title);
+          if(!dup) wishlist.push(w);
+        });
+      }
+      save();
+      renderBooks();
+      renderCounts();
+      input.value = '';
+      alert(`${added}권을 복원했어요!${data.books.length - added > 0 ? `\n(중복 ${data.books.length - added}권 제외)` : ''}`);
+    } catch(err) {
+      alert('파일을 읽는 중 오류가 발생했어요.');
+    }
+  };
+  reader.readAsText(file);
 }
 
 function exportData() {
