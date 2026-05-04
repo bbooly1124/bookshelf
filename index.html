@@ -187,7 +187,6 @@
   /* No results */
   .no-results { text-align:center; padding:32px; color:var(--text3); font-size:13px; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -440,8 +439,8 @@
 </div>
 
 <!-- Thumbnail fetch progress modal -->
-<div class="modal-overlay" id="progressModal" style="pointer-events:all;">
-  <div class="modal-sheet" style="pointer-events:all;">
+<div class="modal-overlay" id="progressModal">
+  <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-header">
       <span class="modal-title">표지 이미지 불러오는 중</span>
@@ -1082,5 +1081,6 @@ function exportData() {
 renderBooks();
 renderCounts();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>
