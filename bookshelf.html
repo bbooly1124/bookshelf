@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>책장</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F5F5;
+    --surface: #FFFFFF;
+    --surface2: #EFEFEF;
+    --accent: #7C3AED;
+    --accent-soft: rgba(124,58,237,0.08);
+    --accent-mid: rgba(124,58,237,0.15);
+    --text: #0A0A0A;
+    --text2: #555555;
+    --text3: #AAAAAA;
+    --border: rgba(0,0,0,0.08);
+    --radius: 16px;
+    --read: #0A0A0A;
+    --reading: #7C3AED;
+    --unread: #888888;
+    --shadow: 0 2px 20px rgba(0,0,0,0.06);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Pretendard',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; max-width:430px; margin:0 auto; position:relative; overflow-x:hidden; }
+
+  /* Header */
+  .app-header { background:var(--surface); padding:52px 20px 16px; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }
+  .header-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .app-title { font-family:'Pretendard',sans-serif; font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+  .header-actions { display:flex; gap:8px; }
+  .icon-btn { width:36px; height:36px; border:none; background:var(--surface2); border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--text2); }
+
+  /* Stats Bar */
+  .stats-bar { display:flex; gap:8px; overflow-x:auto; padding:12px 20px; background:var(--surface); border-bottom:1px solid var(--border); scrollbar-width:none; }
+  .stats-bar::-webkit-scrollbar { display:none; }
+  .stat-chip { flex-shrink:0; display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; cursor:pointer; border:1.5px solid transparent; transition:all 0.2s; }
+  .stat-chip.active { border-color: currentColor; }
+  .stat-chip.all { background:var(--surface2); color:var(--text2); }
+  .stat-chip.all.active { border-color:var(--text2); }
+  .stat-chip.read { background:var(--surface2); color:var(--text); }
+  .stat-chip.reading { background:var(--accent-soft); color:var(--accent); }
+  .stat-chip.unread { background:var(--surface2); color:var(--text2); }
+  .stat-dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+  /* Search */
+  .search-bar { padding:12px 20px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .search-input-wrap { position:relative; }
+  .search-input-wrap input { width:100%; padding:10px 16px 10px 38px; border:1.5px solid var(--border); border-radius:12px; font-size:14px; font-family:'Pretendard',sans-serif; background:var(--surface2); color:var(--text); outline:none; transition:border-color 0.2s; }
+  .search-input-wrap input:focus { border-color:var(--accent); background:#fff; }
+  .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:14px; color:var(--text3); }
+
+  /* Main Content */
+  .main-content { padding:16px 20px 100px; }
+
+  /* Section */
+  .section-label { font-size:11px; font-weight:600; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px; margin-top:20px; }
+  .section-label:first-child { margin-top:0; }
+
+  /* Book Card */
+  .book-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:14px; margin-bottom:10px; display:flex; gap:12px; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s; position:relative; overflow:hidden; }
+  .book-card:active { transform:scale(0.98); }
+  .book-cover { width:52px; height:72px; border-radius:6px; object-fit:cover; flex-shrink:0; position:relative; overflow:hidden; }
+  .cover-placeholder { width:52px; height:72px; border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-family:'Pretendard',sans-serif; font-size:10px; font-weight:600; text-align:center; padding:4px; line-height:1.3; }
+  .cover-0 { background:#E8E8E8; color:#444; }
+  .cover-1 { background:#DDDDE8; color:#333; }
+  .cover-2 { background:#E8E2DD; color:#444; }
+  .cover-3 { background:#DDE8E2; color:#333; }
+  .cover-4 { background:#E4DDE8; color:#444; }
+  .book-info { flex:1; min-width:0; }
+  .book-title { font-family:'Pretendard',sans-serif; font-size:14px; font-weight:600; line-height:1.4; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .book-author { font-size:12px; color:var(--text2); margin-bottom:6px; }
+  .book-meta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .status-badge { font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
+  .badge-read { background:var(--surface2); color:var(--text); }
+  .badge-reading { background:var(--accent-soft); color:var(--accent); }
+  .badge-unread { background:var(--surface2); color:var(--text2); }
+  .badge-wish { background:var(--accent-soft); color:var(--accent); }
+  .stars-mini { font-size:11px; color:var(--accent); letter-spacing:1px; }
+  .progress-bar { width:100%; height:3px; background:var(--surface2); border-radius:2px; margin-top:6px; overflow:hidden; }
+  .progress-fill { height:100%; background:var(--accent); border-radius:2px; transition:width 0.3s; }
+  .book-date { font-size:10px; color:var(--text3); margin-left:auto; }
+
+  /* Empty */
+  .empty-state { text-align:center; padding:48px 20px; color:var(--text3); }
+  .empty-icon { font-size:40px; margin-bottom:12px; }
+  .empty-text { font-size:14px; }
+
+  /* FAB */
+  .fab { position:fixed; bottom:88px; right:20px; width:52px; height:52px; background:var(--accent); border:none; border-radius:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff; box-shadow:0 4px 20px rgba(124,58,237,0.35); z-index:200; transition:transform 0.15s; }
+  .fab:active { transform:scale(0.93); }
+
+  /* Bottom Nav */
+  .bottom-nav { position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:430px; background:var(--surface); border-top:1px solid var(--border); display:flex; padding:8px 0 20px; z-index:100; }
+  .nav-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; padding:6px 0; }
+  .nav-icon { width:20px; height:20px; display:flex; align-items:center; justify-content:center; color:var(--text3); }
+  .nav-item.active .nav-icon { color:var(--accent); }
+  .nav-label { font-size:10px; font-weight:500; color:var(--text3); }
+  .nav-item.active .nav-label { color:var(--accent); font-weight:600; }
+  .nav-item.active .nav-icon { filter:none; }
+
+  /* Modal */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:300; display:flex; align-items:flex-end; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+  .modal-overlay.open { opacity:1; pointer-events:all; }
+  .modal-sheet { background:var(--surface); border-radius:24px 24px 0 0; width:100%; max-height:92vh; overflow-y:auto; padding:0 0 40px; transform:translateY(100%); transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+  .modal-overlay.open .modal-sheet { transform:translateY(0); }
+  .modal-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:12px auto 0; }
+  .modal-header { padding:16px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+  .modal-title { font-family:'Pretendard',sans-serif; font-size:17px; font-weight:600; }
+  .modal-close { font-size:20px; background:none; border:none; cursor:pointer; color:var(--text2); }
+  .modal-body { padding:20px; }
+
+  /* Form */
+  .form-group { margin-bottom:18px; }
+  .form-label { font-size:12px; font-weight:600; color:var(--text2); margin-bottom:6px; display:block; letter-spacing:0.03em; }
+  .form-input { width:100%; padding:11px 14px; border:1.5px solid var(--border); border-radius:12px; font-size:14px; font-family:'Pretendard',sans-serif; background:var(--surface2); color:var(--text); outline:none; transition:border-color 0.2s; }
+  .form-input:focus { border-color:var(--accent); background:#fff; }
+  textarea.form-input { resize:none; line-height:1.6; min-height:90px; }
+  select.form-input { appearance:none; cursor:pointer; }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .star-picker { display:flex; gap:6px; margin-top:4px; }
+  .star-btn { font-size:26px; cursor:pointer; transition:transform 0.1s; color:#DDDDDD; }
+  .star-btn.active { color:var(--accent); }
+  .star-btn:active { transform:scale(1.2); }
+  .btn-primary { width:100%; padding:14px; background:var(--accent); color:#fff; border:none; border-radius:14px; font-size:15px; font-weight:600; font-family:'Pretendard',sans-serif; cursor:pointer; transition:opacity 0.2s; margin-top:8px; }
+  .btn-primary:active { opacity:0.85; }
+  .btn-danger { background:#C0392B; }
+  .btn-row { display:flex; gap:10px; }
+  .btn-ghost { flex:1; padding:12px; background:var(--surface2); color:var(--text2); border:none; border-radius:14px; font-size:14px; font-weight:500; font-family:'Pretendard',sans-serif; cursor:pointer; }
+
+  /* Detail modal */
+  .detail-cover { width:80px; height:110px; border-radius:10px; margin-right:16px; flex-shrink:0; }
+  .detail-header { display:flex; padding:20px; border-bottom:1px solid var(--border); }
+  .detail-title { font-family:'Pretendard',sans-serif; font-size:18px; font-weight:700; line-height:1.4; margin-bottom:4px; }
+  .detail-author { font-size:13px; color:var(--text2); margin-bottom:8px; }
+  .detail-stars { font-size:18px; color:var(--accent); letter-spacing:2px; margin-bottom:6px; }
+  .detail-badges { display:flex; gap:6px; flex-wrap:wrap; }
+  .detail-section { padding:16px 20px; border-bottom:1px solid var(--border); }
+  .detail-section-title { font-size:11px; font-weight:600; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; }
+  .detail-memo { font-size:14px; line-height:1.7; color:var(--text2); white-space:pre-wrap; }
+  .detail-highlight { background:var(--accent-soft); border-left:3px solid var(--accent); padding:10px 14px; border-radius:0 8px 8px 0; font-size:13px; line-height:1.6; color:var(--text); font-style:italic; margin-bottom:8px; }
+  .detail-actions { padding:16px 20px; display:flex; gap:10px; }
+  .tag-chip { font-size:11px; padding:4px 10px; background:var(--surface2); color:var(--text2); border-radius:20px; font-weight:500; }
+
+  /* Stats page */
+  .stats-page { padding:20px 20px 100px; }
+  .stat-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:16px; margin-bottom:12px; }
+  .stat-card-title { font-size:12px; font-weight:600; color:var(--text3); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:12px; }
+  .big-num { font-family:'Pretendard',sans-serif; font-size:40px; font-weight:700; color:var(--accent); line-height:1; }
+  .big-sub { font-size:13px; color:var(--text3); margin-top:4px; }
+  .stat-row { display:flex; gap:10px; margin-bottom:12px; }
+  .stat-mini { flex:1; background:var(--surface2); border-radius:12px; padding:14px; text-align:center; }
+  .stat-mini-num { font-family:'Pretendard',sans-serif; font-size:24px; font-weight:700; }
+  .stat-mini-label { font-size:11px; color:var(--text3); margin-top:2px; }
+  .genre-bar { display:flex; flex-direction:column; gap:8px; }
+  .genre-item { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .genre-name { width:70px; color:var(--text2); font-size:12px; }
+  .genre-track { flex:1; height:8px; background:var(--surface2); border-radius:4px; overflow:hidden; }
+  .genre-fill { height:100%; background:var(--accent); border-radius:4px; transition:width 0.5s; }
+  .genre-count { font-size:12px; color:var(--text3); width:20px; text-align:right; }
+  .goal-wrap { display:flex; align-items:center; gap:14px; }
+  .goal-circle { position:relative; width:80px; height:80px; flex-shrink:0; }
+  .goal-circle svg { transform:rotate(-90deg); }
+  .goal-pct { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'Pretendard',sans-serif; font-size:16px; font-weight:700; color:var(--accent); }
+  .goal-info { flex:1; }
+  .goal-text { font-size:14px; font-weight:500; margin-bottom:4px; }
+  .goal-sub { font-size:12px; color:var(--text3); }
+
+  /* Wish page */
+  .wish-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:14px; margin-bottom:10px; display:flex; gap:12px; align-items:center; }
+  .wish-info { flex:1; min-width:0; }
+  .wish-title { font-family:'Pretendard',sans-serif; font-size:14px; font-weight:600; margin-bottom:3px; }
+  .wish-author { font-size:12px; color:var(--text2); }
+  .wish-actions { display:flex; gap:8px; }
+  .wish-btn { width:32px; height:32px; border:none; border-radius:10px; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
+  .wish-add-btn { background:var(--surface2); color:var(--text); }
+  .wish-del-btn { background:#FEE2E2; color:#DC2626; }
+
+  /* No results */
+  .no-results { text-align:center; padding:32px; color:var(--text3); font-size:13px; }
+</style>
+</head>
+<body>
+
+<!-- App Header -->
+<div class="app-header" id="mainHeader">
+  <div class="header-top">
+    <span class="app-title">책장</span>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="toggleSearch()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      <button class="icon-btn" onclick="exportData()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Stats filter bar -->
+  <div class="stats-bar" id="filterBar">
+    <div class="stat-chip all active" onclick="setFilter('all',this)">
+      <div class="stat-dot"></div>
+      <span>전체 <span id="cnt-all">0</span></span>
+    </div>
+    <div class="stat-chip read" onclick="setFilter('read',this)">
+      <div class="stat-dot"></div>
+      <span>읽은책 <span id="cnt-read">0</span></span>
+    </div>
+    <div class="stat-chip reading" onclick="setFilter('reading',this)">
+      <div class="stat-dot"></div>
+      <span>읽는중 <span id="cnt-reading">0</span></span>
+    </div>
+    <div class="stat-chip unread" onclick="setFilter('unread',this)">
+      <div class="stat-dot"></div>
+      <span>미독 <span id="cnt-unread">0</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="search-bar" id="searchBar" style="display:none">
+  <div class="search-input-wrap">
+    <span class="search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+    <input type="text" id="searchInput" placeholder="제목, 저자, 출판사 검색..." oninput="renderBooks()">
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content" id="mainContent">
+  <div id="bookList"></div>
+</div>
+
+<!-- Stats Page -->
+<div style="display:none; padding-bottom:100px;" id="statsPage" class="stats-page">
+  <div id="statsContent"></div>
+</div>
+
+<!-- Wish Page -->
+<div style="display:none; padding:16px 20px 100px;" id="wishPage">
+  <div id="wishContent"></div>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="mainFab" onclick="openAddModal()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <div class="nav-item active" id="nav-shelf" onclick="showPage('shelf')">
+    <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13"/><path d="M4 19h16"/><path d="M9 4v8l3-2 3 2V4"/></svg></span>
+    <span class="nav-label">서재</span>
+  </div>
+  <div class="nav-item" id="nav-stats" onclick="showPage('stats')">
+    <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+    <span class="nav-label">통계</span>
+  </div>
+  <div class="nav-item" id="nav-wish" onclick="showPage('wish')">
+    <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
+    <span class="nav-label">위시리스트</span>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">책 추가</span>
+      <button class="modal-close" onclick="closeModal('addModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">제목 *</label>
+        <input type="text" class="form-input" id="f-title" placeholder="책 제목">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">저자</label>
+          <input type="text" class="form-input" id="f-author" placeholder="저자명">
+        </div>
+        <div class="form-group">
+          <label class="form-label">출판사</label>
+          <input type="text" class="form-input" id="f-publisher" placeholder="출판사">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">장르</label>
+          <select class="form-input" id="f-genre">
+            <option value="">선택</option>
+            <option>소설</option><option>경제/경영</option><option>자기계발</option>
+            <option>인문/사회</option><option>역사</option><option>과학/기술</option>
+            <option>에세이</option><option>시</option><option>기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">상태</label>
+          <select class="form-input" id="f-status">
+            <option value="unread">미독</option>
+            <option value="reading">읽는중</option>
+            <option value="read">완독</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" id="progressRow" style="display:none">
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">현재 페이지 / 전체 페이지</label>
+          <div style="display:flex;gap:8px">
+            <input type="number" class="form-input" id="f-current" placeholder="현재" style="flex:1">
+            <input type="number" class="form-input" id="f-total" placeholder="전체" style="flex:1">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">별점</label>
+        <div class="star-picker" id="starPicker">
+          <span class="star-btn" onclick="setStar(1)">★</span>
+          <span class="star-btn" onclick="setStar(2)">★</span>
+          <span class="star-btn" onclick="setStar(3)">★</span>
+          <span class="star-btn" onclick="setStar(4)">★</span>
+          <span class="star-btn" onclick="setStar(5)">★</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">감상 / 메모</label>
+        <textarea class="form-input" id="f-memo" rows="3" placeholder="책에 대한 생각이나 메모를 남겨요..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">인상 깊은 구절</label>
+        <textarea class="form-input" id="f-highlight" rows="2" placeholder="기억하고 싶은 문장..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">구매처</label>
+          <select class="form-input" id="f-store">
+            <option value="">선택</option>
+            <option>교보문고</option><option>예스24</option><option>알라딘</option>
+            <option>밀리의서재</option><option>리디북스</option><option>기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">가격</label>
+          <input type="number" class="form-input" id="f-price" placeholder="원">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">구매일</label>
+        <input type="date" class="form-input" id="f-date">
+      </div>
+      <div class="btn-row">
+        <button class="btn-ghost" id="deleteBtn" onclick="deleteCurrentBook()" style="display:none;">삭제</button>
+        <button class="btn-primary" style="flex:2" onclick="saveBook()">저장하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- Add Wish Modal -->
+<div class="modal-overlay" id="wishModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">위시리스트 추가</span>
+      <button class="modal-close" onclick="closeModal('wishModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">제목 *</label>
+        <input type="text" class="form-input" id="w-title" placeholder="책 제목">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">저자</label>
+          <input type="text" class="form-input" id="w-author" placeholder="저자명">
+        </div>
+        <div class="form-group">
+          <label class="form-label">출판사</label>
+          <input type="text" class="form-input" id="w-publisher" placeholder="출판사">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">메모</label>
+        <input type="text" class="form-input" id="w-memo" placeholder="추천받은 이유 등...">
+      </div>
+      <button class="btn-primary" onclick="saveWish()">위시리스트에 추가</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let books = JSON.parse(localStorage.getItem('bookshelf_books') || '[]');
+let wishlist = JSON.parse(localStorage.getItem('bookshelf_wish') || '[]');
+let currentFilter = 'all';
+let currentPage = 'shelf';
+let editingId = null;
+let currentStar = 0;
+
+const statusMap = { read:'완독', reading:'읽는중', unread:'미독' };
+const statusBadge = { read:'badge-read', reading:'badge-reading', unread:'badge-unread' };
+
+function save() {
+  localStorage.setItem('bookshelf_books', JSON.stringify(books));
+  localStorage.setItem('bookshelf_wish', JSON.stringify(wishlist));
+}
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function stars(n, total=5) {
+  let s = '';
+  for(let i=1;i<=total;i++) s += i<=n ? '★' : '☆';
+  return s;
+}
+
+function coverClass(id) {
+  return 'cover-' + (id.charCodeAt(0) % 5);
+}
+
+function renderCounts() {
+  document.getElementById('cnt-all').textContent = books.length;
+  ['read','reading','unread'].forEach(s => {
+    document.getElementById('cnt-'+s).textContent = books.filter(b=>b.status===s).length;
+  });
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.stat-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderBooks();
+}
+
+function toggleSearch() {
+  const bar = document.getElementById('searchBar');
+  bar.style.display = bar.style.display==='none' ? 'block' : 'none';
+  if(bar.style.display==='block') document.getElementById('searchInput').focus();
+  else { document.getElementById('searchInput').value=''; renderBooks(); }
+}
+
+function renderBooks() {
+  const q = (document.getElementById('searchInput').value||'').toLowerCase();
+  let filtered = books.filter(b => {
+    const match = currentFilter==='all' || b.status===currentFilter;
+    const search = !q || [b.title,b.author,b.publisher,b.genre].some(x=>(x||'').toLowerCase().includes(q));
+    return match && search;
+  });
+  const list = document.getElementById('bookList');
+  if(!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📖</div><div class="empty-text">${q?'검색 결과가 없어요':'아직 책이 없어요<br>오른쪽 아래 + 버튼으로 추가해보세요'}</div></div>`;
+    return;
+  }
+  // group by status when filter is all
+  let html = '';
+  if(currentFilter==='all' && !q) {
+    const order = ['reading','unread','read'];
+    const labels = { reading:'읽는중', unread:'미독', read:'완독' };
+    order.forEach(s => {
+      const g = filtered.filter(b=>b.status===s);
+      if(!g.length) return;
+      html += `<div class="section-label">${labels[s]} (${g.length})</div>`;
+      g.forEach(b => html += bookCardHTML(b));
+    });
+  } else {
+    filtered.forEach(b => html += bookCardHTML(b));
+  }
+  list.innerHTML = html;
+}
+
+function bookCardHTML(b) {
+  const prog = b.status==='reading' && b.totalPage ? `<div class="progress-bar"><div class="progress-fill" style="width:${Math.round(b.currentPage/b.totalPage*100)}%"></div></div>` : '';
+  const ratingStr = b.rating ? `<span class="stars-mini">${stars(b.rating)}</span>` : '';
+  const genre = b.genre ? `<span class="tag-chip">${b.genre}</span>` : '';
+  const date = b.purchaseDate ? `<span class="book-date">${b.purchaseDate.slice(0,7)}</span>` : '';
+  return `<div class="book-card" onclick="openDetail('${b.id}')">
+    <div class="cover-placeholder ${coverClass(b.id)}">${b.title.slice(0,4)}</div>
+    <div class="book-info">
+      <div class="book-title">${b.title}</div>
+      <div class="book-author">${b.author||'저자 미상'} ${b.publisher?`· ${b.publisher}`:''}</div>
+      <div class="book-meta">
+        <span class="status-badge ${statusBadge[b.status]}">${statusMap[b.status]}</span>
+        ${ratingStr}${genre}${date}
+      </div>
+      ${prog}
+    </div>
+  </div>`;
+}
+
+function openDetail(id) {
+  const b = books.find(x=>x.id===id);
+  if(!b) return;
+  const progText = b.status==='reading' && b.totalPage ? `${b.currentPage||0}/${b.totalPage}페이지 (${Math.round((b.currentPage||0)/b.totalPage*100)}%)` : '';
+  const highlight = b.highlight ? `<div class="detail-section"><div class="detail-section-title">인상 깊은 구절</div><div class="detail-highlight">"${b.highlight}"</div></div>` : '';
+  const memo = b.memo ? `<div class="detail-section"><div class="detail-section-title">감상 / 메모</div><div class="detail-memo">${b.memo}</div></div>` : '';
+  const purchaseInfo = (b.store||b.price||b.purchaseDate) ? `<div class="detail-section"><div class="detail-section-title">구매 정보</div><div style="font-size:13px;color:var(--text2);line-height:1.8">${b.store?`<span>📦 ${b.store}</span><br>`:''}${b.price?`<span>💰 ${Number(b.price).toLocaleString()}원</span><br>`:''}${b.purchaseDate?`<span>📅 ${b.purchaseDate}</span>`:''}</div></div>` : '';
+  const prog2 = progText ? `<div class="detail-section"><div class="detail-section-title">읽기 진행</div><div style="font-size:14px;color:var(--text2)">${progText}</div><div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${Math.round((b.currentPage||0)/b.totalPage*100)}%"></div></div></div>` : '';
+
+  document.getElementById('detailContent').innerHTML = `
+    <div class="modal-header">
+      <span></span>
+      <button class="modal-close" onclick="closeModal('detailModal')">✕</button>
+    </div>
+    <div class="detail-header">
+      <div class="cover-placeholder ${coverClass(b.id)}" style="width:80px;height:110px;border-radius:10px;font-size:13px">${b.title.slice(0,4)}</div>
+      <div style="flex:1;min-width:0">
+        <div class="detail-title">${b.title}</div>
+        <div class="detail-author">${b.author||'저자 미상'}${b.publisher?` · ${b.publisher}`:''}</div>
+        ${b.rating ? `<div class="detail-stars">${stars(b.rating)}</div>` : ''}
+        <div class="detail-badges">
+          <span class="status-badge ${statusBadge[b.status]}">${statusMap[b.status]}</span>
+          ${b.genre?`<span class="tag-chip">${b.genre}`:''}
+        </div>
+      </div>
+    </div>
+    ${prog2}${highlight}${memo}${purchaseInfo}
+    <div class="detail-actions">
+      <button class="btn-ghost" style="flex:1" onclick="closeModal('detailModal');openEditModal('${b.id}')">✏️ 수정</button>
+    </div>
+  `;
+  openModal('detailModal');
+}
+
+function openAddModal() {
+  if(currentPage==='wish') { openModal('wishModal'); return; }
+  editingId = null;
+  document.getElementById('modalTitle').textContent = '책 추가';
+  document.getElementById('deleteBtn').style.display = 'none';
+  clearForm();
+  openModal('addModal');
+}
+
+function openEditModal(id) {
+  const b = books.find(x=>x.id===id);
+  if(!b) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = '책 수정';
+  document.getElementById('deleteBtn').style.display = 'block';
+  document.getElementById('f-title').value = b.title||'';
+  document.getElementById('f-author').value = b.author||'';
+  document.getElementById('f-publisher').value = b.publisher||'';
+  document.getElementById('f-genre').value = b.genre||'';
+  document.getElementById('f-status').value = b.status||'unread';
+  document.getElementById('f-memo').value = b.memo||'';
+  document.getElementById('f-highlight').value = b.highlight||'';
+  document.getElementById('f-store').value = b.store||'';
+  document.getElementById('f-price').value = b.price||'';
+  document.getElementById('f-date').value = b.purchaseDate||'';
+  document.getElementById('f-current').value = b.currentPage||'';
+  document.getElementById('f-total').value = b.totalPage||'';
+  setStar(b.rating||0);
+  toggleProgress();
+  openModal('addModal');
+}
+
+function clearForm() {
+  ['f-title','f-author','f-publisher','f-memo','f-highlight','f-price','f-date','f-current','f-total'].forEach(id=>{ document.getElementById(id).value=''; });
+  document.getElementById('f-genre').value='';
+  document.getElementById('f-status').value='unread';
+  document.getElementById('f-store').value='';
+  setStar(0);
+  document.getElementById('progressRow').style.display='none';
+}
+
+document.getElementById('f-status').addEventListener('change', toggleProgress);
+function toggleProgress() {
+  const s = document.getElementById('f-status').value;
+  document.getElementById('progressRow').style.display = s==='reading' ? 'grid' : 'none';
+}
+
+function setStar(n) {
+  currentStar = n;
+  document.querySelectorAll('.star-btn').forEach((el,i) => {
+    el.classList.toggle('active', i<n);
+  });
+}
+
+function saveBook() {
+  const title = document.getElementById('f-title').value.trim();
+  if(!title) { alert('제목을 입력해주세요'); return; }
+  const book = {
+    id: editingId || genId(),
+    title,
+    author: document.getElementById('f-author').value.trim(),
+    publisher: document.getElementById('f-publisher').value.trim(),
+    genre: document.getElementById('f-genre').value,
+    status: document.getElementById('f-status').value,
+    rating: currentStar,
+    memo: document.getElementById('f-memo').value.trim(),
+    highlight: document.getElementById('f-highlight').value.trim(),
+    store: document.getElementById('f-store').value,
+    price: document.getElementById('f-price').value,
+    purchaseDate: document.getElementById('f-date').value,
+    currentPage: parseInt(document.getElementById('f-current').value)||0,
+    totalPage: parseInt(document.getElementById('f-total').value)||0,
+    addedAt: editingId ? books.find(b=>b.id===editingId).addedAt : new Date().toISOString()
+  };
+  if(editingId) books = books.map(b=>b.id===editingId?book:b);
+  else books.unshift(book);
+  save();
+  closeModal('addModal');
+  renderBooks();
+  renderCounts();
+}
+
+function deleteCurrentBook() {
+  if(!editingId) return;
+  if(!confirm('이 책을 삭제할까요?')) return;
+  books = books.filter(b=>b.id!==editingId);
+  save();
+  closeModal('addModal');
+  renderBooks();
+  renderCounts();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.classList.remove('open'); });
+});
+
+function showPage(page) {
+  currentPage = page;
+  document.getElementById('mainContent').style.display = page==='shelf' ? 'block' : 'none';
+  document.getElementById('statsPage').style.display = page==='stats' ? 'block' : 'none';
+  document.getElementById('wishPage').style.display = page==='wish' ? 'block' : 'none';
+  document.getElementById('filterBar').style.display = page==='shelf' ? 'flex' : 'none';
+  document.getElementById('mainFab').style.display = ['shelf','wish'].includes(page) ? 'flex' : 'none';
+  ['shelf','stats','wish'].forEach(p => {
+    document.getElementById('nav-'+p).classList.toggle('active', p===page);
+  });
+  if(page==='stats') renderStats();
+  if(page==='wish') renderWish();
+}
+
+function renderStats() {
+  const total = books.length;
+  const read = books.filter(b=>b.status==='read').length;
+  const reading = books.filter(b=>b.status==='reading').length;
+  const rated = books.filter(b=>b.rating>0);
+  const avgRating = rated.length ? (rated.reduce((a,b)=>a+b.rating,0)/rated.length).toFixed(1) : '—';
+  const totalCost = books.filter(b=>b.price).reduce((a,b)=>a+Number(b.price),0);
+
+  // genre stats
+  const genres = {};
+  books.forEach(b=>{ if(b.genre) genres[b.genre]=(genres[b.genre]||0)+1; });
+  const sortedGenres = Object.entries(genres).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxG = sortedGenres[0]?.[1]||1;
+
+  // monthly read
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const monthlyRead = books.filter(b=>b.status==='read' && b.addedAt && new Date(b.addedAt).getFullYear()===thisYear).length;
+
+  // goal
+  const goal = parseInt(localStorage.getItem('readGoal')||'30');
+  const goalPct = Math.min(100, Math.round(read/goal*100));
+  const r=36, circ=2*Math.PI*r;
+
+  document.getElementById('statsContent').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-card-title">올해 독서</div>
+      <div class="goal-wrap">
+        <div class="goal-circle">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="6"/>
+            <circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--accent)" stroke-width="6"
+              stroke-dasharray="${circ}" stroke-dashoffset="${circ*(1-goalPct/100)}" stroke-linecap="round"/>
+          </svg>
+          <div class="goal-pct">${goalPct}%</div>
+        </div>
+        <div class="goal-info">
+          <div class="goal-text">목표 <strong>${goal}권</strong> 중 <strong>${read}권</strong> 완독</div>
+          <div class="goal-sub">남은 목표 ${Math.max(0,goal-read)}권</div>
+          <button onclick="changeGoal()" style="margin-top:8px;padding:4px 12px;border:1px solid var(--border);border-radius:8px;font-size:11px;background:var(--surface2);color:var(--text2);cursor:pointer;font-family:inherit">목표 변경</button>
+        </div>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-mini"><div class="stat-mini-num" style="color:var(--accent)">${read}</div><div class="stat-mini-label">완독</div></div>
+      <div class="stat-mini"><div class="stat-mini-num" style="color:var(--reading)">${reading}</div><div class="stat-mini-label">읽는중</div></div>
+      <div class="stat-mini"><div class="stat-mini-num">${total}</div><div class="stat-mini-label">총 권수</div></div>
+      <div class="stat-mini"><div class="stat-mini-num" style="color:var(--accent)">${avgRating}</div><div class="stat-mini-label">평균별점</div></div>
+    </div>
+    ${sortedGenres.length ? `
+    <div class="stat-card">
+      <div class="stat-card-title">장르별 분포</div>
+      <div class="genre-bar">
+        ${sortedGenres.map(([g,c])=>`
+          <div class="genre-item">
+            <span class="genre-name">${g}</span>
+            <div class="genre-track"><div class="genre-fill" style="width:${Math.round(c/maxG*100)}%"></div></div>
+            <span class="genre-count">${c}</span>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+    ${totalCost ? `<div class="stat-card"><div class="stat-card-title">총 도서 지출</div><div class="big-num">${totalCost.toLocaleString()}<span style="font-size:18px;color:var(--text3)">원</span></div><div class="big-sub">구매 기록이 있는 책 기준</div></div>` : ''}
+  `;
+}
+
+function changeGoal() {
+  const g = prompt('연간 독서 목표 권수를 입력하세요', localStorage.getItem('readGoal')||'30');
+  if(g && !isNaN(g)) { localStorage.setItem('readGoal',g); renderStats(); }
+}
+
+function renderWish() {
+  const container = document.getElementById('wishContent');
+  if(!wishlist.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">✨</div><div class="empty-text">위시리스트가 비어있어요<br>읽고 싶은 책을 추가해보세요</div></div>`;
+    return;
+  }
+  container.innerHTML = wishlist.map(w => `
+    <div class="wish-card">
+      <div class="cover-placeholder ${coverClass(w.id)}" style="width:44px;height:60px;border-radius:6px;font-size:9px;flex-shrink:0">${w.title.slice(0,4)}</div>
+      <div class="wish-info">
+        <div class="wish-title">${w.title}</div>
+        <div class="wish-author">${w.author||'저자 미상'}${w.publisher?` · ${w.publisher}`:''}</div>
+        ${w.memo?`<div style="font-size:11px;color:var(--text3);margin-top:3px">${w.memo}</div>`:''}
+      </div>
+      <div class="wish-actions">
+        <button class="wish-btn wish-add-btn" onclick="moveWishToShelf('${w.id}')" title="서재에 추가"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13"/><path d="M4 19h16"/><path d="M9 4v8l3-2 3 2V4"/></svg></button>
+        <button class="wish-btn wish-del-btn" onclick="deleteWish('${w.id}')" title="삭제"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function saveWish() {
+  const title = document.getElementById('w-title').value.trim();
+  if(!title) { alert('제목을 입력해주세요'); return; }
+  wishlist.unshift({
+    id: genId(),
+    title,
+    author: document.getElementById('w-author').value.trim(),
+    publisher: document.getElementById('w-publisher').value.trim(),
+    memo: document.getElementById('w-memo').value.trim()
+  });
+  save();
+  closeModal('wishModal');
+  ['w-title','w-author','w-publisher','w-memo'].forEach(id=>document.getElementById(id).value='');
+  renderWish();
+}
+
+function deleteWish(id) {
+  wishlist = wishlist.filter(w=>w.id!==id);
+  save();
+  renderWish();
+}
+
+function moveWishToShelf(id) {
+  const w = wishlist.find(x=>x.id===id);
+  if(!w) return;
+  books.unshift({ ...w, status:'unread', rating:0, addedAt:new Date().toISOString() });
+  wishlist = wishlist.filter(x=>x.id!==id);
+  save();
+  renderWish();
+  renderCounts();
+  alert(`"${w.title}"을 서재에 추가했어요!`);
+}
+
+function exportData() {
+  const data = { books, wishlist, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '책장_백업_' + new Date().toLocaleDateString('ko') + '.json';
+  a.click();
+}
+
+// Init
+renderBooks();
+renderCounts();
+</script>
+</body>
+</html>
